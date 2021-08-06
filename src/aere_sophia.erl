@@ -21,16 +21,18 @@ process_err(E) -> %% idk, rethrow
 typecheck(Ast) ->
     typecheck(Ast, []).
 typecheck(Ast, Opts) ->
-    try aeso_ast_infer_types:infer(Ast, Opts)
+    try aeso_ast_infer_types:infer(Ast, Opts) of
+        {_, TAst} -> TAst
     catch _:{error, Errs} ->
             throw({error, process_err(Errs)})
     end.
 
 
 compile_contract(fate, Src, TypedAst) ->
-    FCode    = try aeso_ast_to_fcode:ast_to_fcode(TypedAst, [])
-               catch {error, Ec} -> process_err(Ec) end,
-    Fate     = try aeso_fcode_to_fate:compile(FCode, [])
+    {#{child_con_env := ChildContracts}, FCode} = 
+        try aeso_ast_to_fcode:ast_to_fcode(TypedAst, [])
+        catch {error, Ec} -> process_err(Ec) end,
+    Fate     = try aeso_fcode_to_fate:compile(ChildContracts, FCode, [])
                catch {error, Ef} -> process_err(Ef) end,
     ByteCode = aeb_fate_code:serialize(Fate, []),
     #{byte_code => ByteCode,
@@ -56,7 +58,7 @@ compile_contract(aevm, Src, TypedAst) ->
       payable => maps:get(payable, Icode)
      }.
 
-type_of([{contract, _, _, Defs}], FunName) ->
+type_of([{_, _, _, Defs}], FunName) ->
     ArgType = fun(A) -> [T || {arg, _, _, T} <- A] end,
     GetType = fun({letfun, _, {id, _, Name}, Args, Ret, _})
                     when Name == FunName -> [{Args, Ret}];

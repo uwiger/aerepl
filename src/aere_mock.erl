@@ -21,18 +21,32 @@
 ann() ->
     [{file, <<"REPL">>}].
 
-
-%% contract Name =
+%% contract interface Name =
 %%   Body
--spec contract(list(aeso_syntax:decl())) -> aeso_syntax:decl().
-contract(Body) ->
-    contract(?MOCK_CONTRACT, Body).
--spec contract(string(), list(aeso_syntax:decl())) -> aeso_syntax:decl().
-contract(Name, Body) ->
-    {contract, [payable, ann()], {con, ann(), Name},
+-spec contract_interface(string(), list(aeso_syntax:decl())) -> aeso_syntax:decl().
+contract_interface(Name, Body) ->
+    {contract_interface, [payable, ann()], {con, ann(), Name},
      Body
     }.
 
+%% contract Name =
+%%   Body
+-spec contract_child(string(), list(aeso_syntax:decl())) -> aeso_syntax:decl().
+contract_child(Name, Body) ->
+    {contract_child, [payable, ann()], {con, ann(), Name},
+     Body
+    }.
+
+%% main contract Name =
+%%   Body
+-spec contract_main(list(aeso_syntax:decl())) -> aeso_syntax:decl().
+contract_main(Body) ->
+    contract_main(?MOCK_CONTRACT, Body).
+-spec contract_main(string(), list(aeso_syntax:decl())) -> aeso_syntax:decl().
+contract_main(Name, Body) ->
+    {contract_main, [payable, ann()], {con, ann(), Name},
+     Body
+    }.
 
 %% type Name = Type
 -spec type_alias(string(), aeso_syntax:type()) -> aeso_syntax:decl().
@@ -137,7 +151,7 @@ simple_query_contract(State = #repl_state{ user_contract_state_type = StType
     Body = {block, ann(), Stmts},
     State1 = with_auto_imports(State, Body),
     State2 = with_letfun_auto_imports(State1),
-    Con = contract(
+    Con = contract_main(
             letfun_defs(State2) ++
                 [ type_alias("state", StType)
                 , val_entrypoint( ?USER_INPUT
@@ -162,11 +176,12 @@ chained_query_contract(State = #repl_state
             end},
     State1 = with_auto_imports(State, Body),
     State2 = with_letfun_auto_imports(State1),
-    Prev = contract(?PREV_CONTRACT, [entrypoint_decl(?GET_STATE, [], StType)]),
-    Query = contract(state_init(State2) ++ letfun_defs(State2) ++ typedefs(State2) ++
-                         [ val_entrypoint(?USER_INPUT, with_value_refs(State2, Body), full)
-                         , val_entrypoint(?GET_STATE, {id, ann(), "state"})
-                         ]),
+    Prev = contract_interface(?PREV_CONTRACT, [entrypoint_decl(?GET_STATE, [], StType)]),
+    Query = contract_main(
+              state_init(State2) ++ letfun_defs(State2) ++ typedefs(State2) ++
+                  [ val_entrypoint(?USER_INPUT, with_value_refs(State2, Body), full)
+                  , val_entrypoint(?GET_STATE, {id, ann(), "state"})
+                  ]),
     prelude(State2) ++ [Prev, Query].
 
 -spec with_token_refund(repl_state(), list(aeso_syntax:stmt())) -> list(aeso_syntax:stmt()).
@@ -191,10 +206,11 @@ with_token_refund(_, L) when is_list(L) ->
                               -> aeso_syntax:ast().
 chained_initial_contract(State, Stmts, Type) ->
     Body = {block, ann(), Stmts},
-    Con = contract([ type_alias("state", Type)
-                   , val_entrypoint("init", with_value_refs(State, Body))
-                   , val_entrypoint(?GET_STATE, {id, ann(), "state"})
-                   ]),
+    Con = contract_main(
+            [ type_alias("state", Type)
+            , val_entrypoint("init", with_value_refs(State, Body))
+            , val_entrypoint(?GET_STATE, {id, ann(), "state"})
+            ]),
     prelude(State) ++ [Con].
 
 
@@ -206,20 +222,21 @@ letval_provider(State = #repl_state{ user_contract_state_type = StType
                                    }, Name, Body) ->
     State1 = with_auto_imports(State, [Body]),
     State2 = with_letfun_auto_imports(State1),
-    Prev = contract(?PREV_CONTRACT, [entrypoint_decl(?GET_STATE, [], StType)]),
-    Con = contract(?LETVAL_PROVIDER(Name)
-                  , [val_entrypoint( ?LETVAL_GETTER(Name)
-                                   , with_value_refs(State2, Body))|state_init(State)]
-                   ++ letfun_defs(State2)
-                  ),
+    Prev = contract_interface(?PREV_CONTRACT, [entrypoint_decl(?GET_STATE, [], StType)]),
+    Con = contract_main(
+            ?LETVAL_PROVIDER(Name)
+           , [val_entrypoint( ?LETVAL_GETTER(Name)
+                            , with_value_refs(State2, Body))|state_init(State)]
+            ++ letfun_defs(State2)
+           ),
     prelude(State2) ++ [Prev, Con].
 
 
 %% Declarations of providers of values
 -spec letval_provider_decls(repl_state()) -> list(aeso_syntax:decl()).
 letval_provider_decls(#repl_state{letvals = Letvals}) ->
-    [contract( ?LETVAL_PROVIDER_DECL(Name)
-             , [entrypoint_decl(?LETVAL_GETTER(Name), [], Type)])
+    [contract_interface( ?LETVAL_PROVIDER_DECL(Name)
+                       , [entrypoint_decl(?LETVAL_GETTER(Name), [], Type)])
      || {{Name, _}, {_, Type}} <- Letvals
     ].
 

@@ -579,7 +579,7 @@ register_tracked_contract(State = #repl_state
     TAstUnfolded = aere_sophia:typecheck(Ast, [dont_unfold]),
     TAst = aere_sophia:typecheck(Ast),
     BCode = aere_sophia:compile_contract(fate, binary_to_list(Src), TAst),
-    Interface = {contract, _, {con, _, StrDeclName}, _}
+    Interface = {contract_interface, _, {con, _, StrDeclName}, _}
         = aere_sophia:generate_interface_decl(TAstUnfolded),
     State0 = State#repl_state
         {type_alias_map =
@@ -629,8 +629,8 @@ register_tracked_contract(State = #repl_state
 
     Interface1 =
         begin
-            {contract, IAnn, {con, INAnn, _}, IDecl} = unfold_aliases(State1, Interface),
-            {contract, IAnn, {con, INAnn, ActualName}, IDecl}
+            {contract_interface, IAnn, {con, INAnn, _}, IDecl} = unfold_aliases(State1, Interface),
+            {contract_interface, IAnn, {con, INAnn, ActualName}, IDecl}
         end,
 
     {{ConAddr, DeployGas}, State2} = deploy_contract(BCode, {}, Opts, State1),
@@ -676,7 +676,11 @@ register_typedef(State, {type_def, _, {id, NAnn, StrName}, Args, Def}) ->
                  TryName = "TYPEDEF_" ++ integer_to_list(Sup),
                  Mock = aere_mock:simple_query_contract(State0_1, [{id, aere_mock:ann(), "state"}]),
                  Namespaces = [N || {namespace, _, {con, _, N}, _} <- Mock],
-                 Contracts = [N || {contract, _, {con, _, N}, _} <- Mock],
+                 Contracts = [N || {ConHead, _, {con, _, N}, _} <- Mock,
+                                   ConHead == contract_child orelse
+                                       ConHead == contract_main orelse
+                                       ConHead == contract_interface %% FIXME I don't check all of these, do I?
+                             ],
                  ?IF(lists:member(TryName, Namespaces ++ Contracts),
                      Retry(State0_1),
                      {State0_1, TryName}
@@ -884,7 +888,8 @@ build_type_map(_Scope, [], Acc) ->
     Acc;
 build_type_map(Scope, [{namespace, _, {con, _, Name}, Defs} | Rest], Acc) ->
     build_type_map(Scope, Rest, build_type_map(Scope ++ [Name], Defs, Acc));
-build_type_map(Scope, [{contract, _, {con, _, Name}, Defs} | Rest], Acc) ->
+build_type_map(Scope, [{ContractHead, _, {con, _, Name}, Defs} | Rest], Acc) when
+      ContractHead == contract_child orelse ContractHead == contract_interface orelse ContractHead == contract_main ->
     build_type_map(Scope, Rest, build_type_map(Scope ++ [Name], Defs, Acc));
 build_type_map(Scope, [{type_def, _, {id, _, Name}, Args, {variant_t, Cons}} | Rest], Acc) ->
     build_type_map(Scope, Rest, Acc#{Scope ++ [Name] => {variant, Args, Cons}});

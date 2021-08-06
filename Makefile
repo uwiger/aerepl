@@ -10,7 +10,7 @@ aerepl:
 	git submodule update
 	ln -sfn node/apps .
 	ln -sfn node/data .
-	CXXFLAGS="-Wno-error=shadow -Wno-deprecated-copy -Wno-redundant-move -Wno-pessimizing-move" ./rebar3 as prod release
+	CXXFLAGS="-Wno-error=shadow -Wno-error -Wno-error=range-loop-construct -Wno-deprecated-copy -Wno-redundant-move -Wno-pessimizing-move" ./rebar3 as prod release
 	chmod +x aerepl
 	ln -sfn _build/prod/rel/aerepl/bin/aerepl aerepl_server
 
