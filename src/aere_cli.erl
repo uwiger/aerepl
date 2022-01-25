@@ -1,6 +1,7 @@
 -module(aere_cli).
 
 -export([run/0, run/1]).
+-export([run_local/0]).
 
 -include("aere_repl.hrl").
 -include("aere_macros.hrl").
@@ -20,6 +21,11 @@ get_resp(R) ->
         {response, R, Res = #repl_response{}} -> Res;
         finito -> finito
     end.
+
+run_local() ->
+    R = spawn(aerepl, start, []),
+    run(R),
+    leave(R).
 
 run() ->
     R = spawn(aerepl@localhost, aerepl, start, []),

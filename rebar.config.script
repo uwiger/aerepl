@@ -1,0 +1,28 @@
+%% -*- mode: erlang; erlang-indent-level: 4; indent-tabs-mode: nil -*-
+{_, Deps} = lists:keyfind(deps, 1, CONFIG).
+
+case os:getenv("AE_ROOT") of
+    false ->
+        CONFIG;
+    ROOT ->
+        ok = filelib:ensure_dir("_checkouts/foo"),
+        ok = filelib:ensure_dir("includes/foo"),
+        {ok, Apps} = file:list_dir(filename:join(ROOT, "apps")),
+        [file:make_symlink(filename:join([ROOT, "apps", A]), filename:join("_checkouts", A))
+         || A <- Apps],
+        file:make_symlink(filename:join(ROOT, "apps/aecontract/test/include/aect_sophia_vsn.hrl"),
+                          "includes/aect_sophia_vsn_hrl"),
+        AeConfig = rebar_config:consult_file(filename:join(ROOT, "rebar.config")),
+        {_, AeDeps} = lists:keyfind(deps, 1, AeConfig),
+        Deps1 = lists:map(
+                  fun(D) when is_atom(D) ->
+                          case lists:keyfind(D, 1, AeDeps) of
+                              false -> D;
+                              {_, _} = Dep ->
+                                  Dep
+                          end;
+                     (D) ->
+                          D
+                  end, Deps),
+        lists:keyreplace(deps, 1, CONFIG, {deps, Deps1})
+end.

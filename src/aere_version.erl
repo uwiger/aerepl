@@ -6,10 +6,10 @@
         , contract_version/0
         , vm_version/1]).
 
--include("../apps/aecontract/src/aect_sophia.hrl").
--include("../apps/aecontract/include/aecontract.hrl").
--include_lib("../apps/aecontract/include/hard_forks.hrl").
--include("../apps/aecontract/test/include/aect_sophia_vsn.hrl").
+-include_lib("aecontract/src/aect_sophia.hrl").
+-include_lib("aecontract/include/aecontract.hrl").
+-include_lib("aecontract/include/hard_forks.hrl").
+-include_lib("aecontract/test/include/aect_sophia_vsn.hrl").
 
 
 protocol_version() ->
